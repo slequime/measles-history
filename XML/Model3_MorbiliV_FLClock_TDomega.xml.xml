@@ -8,7 +8,6 @@
 <!--       http://beast.community/                                           -->
 <beast version="1.10.4">
 	
-
 	<!-- The list of taxa to be analysed (can also include dates/ages).          -->
 	<!-- ntax=51                                                                 -->
 	<taxa id="taxa">
@@ -167,7 +166,28 @@
 		</taxon>
 	</taxa>
 	
-	
+	<taxa id="PPRV">
+		<taxon idref="KR781450_1969"/>
+		<taxon idref="EU267274_1976"/>
+		<taxon idref="KJ466104_2010"/>
+		<taxon idref="KU236379_2015-07-08"/>
+		<taxon idref="MF741712_2011-12-17"/>
+		<taxon idref="KR781449_2011-05-21"/>
+		<taxon idref="KR140086_1994"/>
+		<taxon idref="JX217850_2008"/>
+		<taxon idref="MG581412_2008-05"/>
+		<taxon idref="KR261605_2014-09-16"/>
+		<taxon idref="KY888168_2016-09"/>
+		<taxon idref="NC_006383_2000"/>
+		<taxon idref="KC594074_2008"/>
+		<taxon idref="KY885100_2015-11-11"/>
+		<taxon idref="KJ867541_2010"/>
+		<taxon idref="MF678816_2017-01"/>
+		<taxon idref="KR828813_2013-02-15"/>
+		<taxon idref="EU267273_1989"/>
+		<taxon idref="KJ867544_1983"/>
+		<taxon idref="KM463083_2011-05"/>
+	</taxa>
 
 	<!-- The sequence alignment (each sequence refers to a taxon above).         -->
 	<!-- ntax=51 nchar=13131                                                     -->
@@ -378,6 +398,7 @@
 		</sequence>
 	</alignment>
 	
+	
 	<convert id="codonAlignment" dataType="codon" geneticCode="universal">
 		<alignment idref="alignment"/>
 	</convert>
@@ -511,30 +532,161 @@
 		</populationTree>
 	</coalescentLikelihood>
 	
-
-	<!-- The strict clock (Uniform rates across branches)                        -->
-	<strictClockBranchRates id="branchRates">
-		<rate>
-			<parameter id="clock.rate" value="0.0015" lower="0"/>
-		</rate>
-	</strictClockBranchRates>
-	
+	<discretizedBranchRates id="randomEffects">
+		<treeModel idref="treeModel"/>
+		<distribution>
+			<normalDistributionModel>
+				<mean>
+					<parameter id="ucld.mean" value="0.0" lower="0.0"/>
+				</mean>
+				<stdev>
+					<parameter id="ucld.stdev" value="0.1" lower="0.0"/>
+				</stdev>
+			</normalDistributionModel>
+		</distribution>
+		<rateCategories>
+			<parameter id="randomEffects.categories"/>
+		</rateCategories>
+	</discretizedBranchRates>
 	<rateStatistic id="meanRate" name="meanRate" mode="mean" internal="true" external="true">
 		<treeModel idref="treeModel"/>
-		<strictClockBranchRates idref="branchRates"/>
+		<discretizedBranchRates idref="randomEffects"/>
 	</rateStatistic>
-	
+	<rateStatistic id="coefficientOfVariation" name="coefficientOfVariation" mode="coefficientOfVariation" internal="true" external="true">
+		<treeModel idref="treeModel"/>
+		<discretizedBranchRates idref="randomEffects"/>
+	</rateStatistic>
+	<rateCovarianceStatistic id="covariance" name="covariance">
+		<treeModel idref="treeModel"/>
+		<discretizedBranchRates idref="randomEffects"/>
+	</rateCovarianceStatistic>
+ 
+	<compoundParameter id="coefficients">
+		<parameter id="coefficient1" value="-6"/>
+		<parameter id="coefficient2" value="-0.08"/>
+		<parameter idref="coefficient2"/>
+	</compoundParameter>
+
+	<matrixVectorProductParameter id="clock.rate">
+	    <matrix>
+			<designMatrix id="design">
+	    		<parameter id="intercept"
+	        	value="1 1 1"/>
+	    		<parameter id="effect1"
+	        	value="0 1 0"/>
+	    		<parameter id="effect2"
+	        	value="0 0 1"/>
+			</designMatrix>
+	    </matrix>
+	    <vector>
+			<productParameter id="coefficientsTimeIndicators">
+	        	<parameter idref="coefficients"/>
+				<parameter id="indicators" value="1 1 1"/>
+			</productParameter>
+	    </vector>
+	</matrixVectorProductParameter>
+
+    <countableMixtureBranchRates id="branchRates" randomize="false" inLogSpace="true">
+        <treeModel idref="treeModel"/>
+        <rates>
+		 	<sumParameter idref="clock.rate"/>
+        </rates>
+        <rateCategories>
+            <parameter id="fixedEffects.categories"/>
+        </rateCategories>
+        <clade category="2" includeStem="false" excludeClade="false">
+           <taxa idref="PPRV"/>
+        </clade>
+        <clade category="3" includeStem="true" excludeClade="true">
+            <taxa idref="PPRV"/>
+        </clade>
+<!--
+ 		<randomEffects>
+			<discretizedBranchRates idref="randomEffects"/>
+		</randomEffects>
+-->
+   </countableMixtureBranchRates>
+
+    <!-- Frequence Model -->
 	<frequencyModel id="freqModel" dataType="codon-universal">
 		<alignment idref="codonAlignment"/>
 		<frequencies>
 			<parameter id="codonfrequencies" dimension="61"/>
 		</frequencies>
-	</frequencyModel>
+    </frequencyModel>
+
+    <designMatrix id="epochDesignMatrix">
+        <parameter id="designMatrix.offset" value="1 1 1 1 1"/> 
+<!-- ln -->
+        <parameter id="designMatrix.time"   value="1 3 5 7 9"/>
+    </designMatrix>
+ 
+	<matrixVectorProductParameter id="all.omegas">
+		<matrix>
+			<designMatrix idref="epochDesignMatrix"/>
+		</matrix>
+		<vector>
+<!--
+			<parameter id="rate.coefficients" value="-4 -0.05"/>
+-->			
+	    	<parameter id="omega.coefficients" value="-2 -0.05"/>
+	    </vector>
+	</matrixVectorProductParameter>
+
+	<transformedParameter id="epoch.omega01" inverse="true">
+		<transform type="log"/>
+		<maskedParameter signalDependents="false"> <!-- determininistic function of coefficients -->
+			<parameter idref="all.omegas"/>
+			<mask>
+				<parameter value="1 0 0 0 0"/>  
+			</mask>
+		</maskedParameter>
+	</transformedParameter>
+
+	<transformedParameter id="epoch.omega02" inverse="true">
+		<transform type="log"/>
+		<maskedParameter signalDependents="false"> <!-- determininistic function of coefficients -->
+			<parameter idref="all.omegas"/>
+			<mask>
+				<parameter value="0 1 0 0 0"/>  
+			</mask>
+		</maskedParameter>
+	</transformedParameter>
+
+	<transformedParameter id="epoch.omega03" inverse="true">
+		<transform type="log"/>
+		<maskedParameter signalDependents="false"> <!-- determininistic function of coefficients -->
+			<parameter idref="all.omegas"/>
+			<mask>
+				<parameter value="0 0 1 0 0"/>  
+			</mask>
+		</maskedParameter>
+	</transformedParameter>
+
+	<transformedParameter id="epoch.omega04" inverse="true">
+		<transform type="log"/>
+		<maskedParameter signalDependents="false"> <!-- determininistic function of coefficients -->
+			<parameter idref="all.omegas"/>
+			<mask>
+				<parameter value="0 0 0 1 0"/>  
+			</mask>
+		</maskedParameter>
+	</transformedParameter>
+
+	<transformedParameter id="epoch.omega05" inverse="true">
+		<transform type="log"/>
+		<maskedParameter signalDependents="false"> <!-- determininistic function of coefficients -->
+			<parameter idref="all.omegas"/>
+			<mask>
+				<parameter value="0 0 0 0 1"/>  
+			</mask>
+		</maskedParameter>
+	</transformedParameter>
 
   <!-- Codon Model -->
-    <yangCodonModel id="yang" geneticCode="universal">
+    <yangCodonModel id="yang01" geneticCode="universal">
         <omega>
-            <parameter id="omega" value="0.3"/>
+            <parameter idref="epoch.omega01"/>
         </omega>
         <kappa>
             <parameter id="kappa" value="0.5"/>
@@ -542,25 +694,106 @@
         <frequencyModel idref="freqModel"/>
     </yangCodonModel>
 
+    <yangCodonModel id="yang02" geneticCode="universal">
+        <omega>
+            <parameter idref="epoch.omega02"/>
+        </omega>
+        <kappa>
+            <parameter idref="kappa"/>
+        </kappa>
+        <frequencyModel idref="freqModel"/>
+    </yangCodonModel>
+
+    <yangCodonModel id="yang03" geneticCode="universal">
+        <omega>
+            <parameter idref="epoch.omega03"/>
+        </omega>
+        <kappa>
+            <parameter idref="kappa"/>
+        </kappa>
+        <frequencyModel idref="freqModel"/>
+    </yangCodonModel>
+
+    <yangCodonModel id="yang04" geneticCode="universal">
+        <omega>
+            <parameter idref="epoch.omega04"/>
+        </omega>
+        <kappa>
+            <parameter idref="kappa"/>
+        </kappa>
+        <frequencyModel idref="freqModel"/>
+    </yangCodonModel>
+
+    <yangCodonModel id="yang05" geneticCode="universal">
+        <omega>
+            <parameter idref="epoch.omega05"/>
+        </omega>
+        <kappa>
+            <parameter idref="kappa"/>
+        </kappa>
+        <frequencyModel idref="freqModel"/>
+    </yangCodonModel>
+    
+	<!-- Epoch Model -->
+	<epochBranchModel id="epochModel">
+
+		<epoch transitionTime="7.389056099">
+			<museGautCodonModel idref="yang01"/>
+		</epoch>
+		<epoch transitionTime="54.59815003">
+			<museGautCodonModel idref="yang02"/>
+		</epoch>
+		<epoch transitionTime="403.4287935">
+			<museGautCodonModel idref="yang03"/>
+		</epoch>
+		<epoch transitionTime="2980.957987">
+			<museGautCodonModel idref="yang04"/>
+		</epoch>
+			<museGautCodonModel idref="yang05"/>
+		<treeModel idref="treeModel"/>
+
+	</epochBranchModel>
+
+	<compoundParameter id="epoch.omegas">
+		<parameter idref="epoch.omega01"/>
+		<parameter idref="epoch.omega02"/>
+		<parameter idref="epoch.omega03"/>
+		<parameter idref="epoch.omega04"/>
+		<parameter idref="epoch.omega05"/>
+	</compoundParameter>
+
 	<siteModel id="siteModel">
-		<substitutionModel> 
-             <yangCodonModel idref="yang"/>
-		</substitutionModel> 
+		<branchSubstitutionModel> 
+             <epochBranchModel idref="epochModel"/>
+		</branchSubstitutionModel> 
 		<gammaShape gammaCategories="4">
 			<parameter id="siteModel.alpha" value="0.5" lower="0.0"/>
 		</gammaShape>
-	</siteModel>	
+	</siteModel>
 
 	<!-- Likelihood for tree given sequence data                                 -->
-	<treeDataLikelihood id="treeLikelihood" useAmbiguities="false">
-		<partition>
-			<patterns idref="patterns"/>
-			<siteModel idref="siteModel"/>
-		</partition>
+	<treeLikelihood id="treeLikelihood">
+		<patterns idref="patterns"/>
 		<treeModel idref="treeModel"/>
-		<strictClockBranchRates idref="branchRates"/>
-	</treeDataLikelihood>
-	
+		<siteModel idref="siteModel"/>
+		<epochBranchModel idref="epochModel"/>	
+		<countableMixtureBranchRates idref="branchRates"/>
+	</treeLikelihood>	
+
+	<multivariateNormalPrior id="omega.coefficients.prior">
+		<data>
+			<parameter idref="omega.coefficients"/>
+		</data>
+		<meanParameter>
+			<parameter value="0 0"/>
+		</meanParameter>
+		<precisionParameter>
+			<matrixParameter>
+				<parameter value="0.001 0"/>
+				<parameter value="0 0.5"/>
+			</matrixParameter>
+		</precisionParameter>
+	</multivariateNormalPrior>
 
 	<!-- Define operators                                                        -->
 	<operators id="operators" optimizationSchedule="default">
@@ -573,18 +806,42 @@
 		<scaleOperator scaleFactor="0.75" weight="1.0">
 			<parameter idref="siteModel.alpha"/>
 		</scaleOperator>
-		<scaleOperator scaleFactor="0.75" weight="6">
-			<parameter idref="omega"/>
+		<randomWalkOperator windowSize="0.01" weight="15"  autoOptimize="true">
+			<parameter idref="omega.coefficients"/>
+		</randomWalkOperator> 
+<!--
+		<scaleOperator scaleFactor="0.75" weight="3">
+			<parameter idref="ucld.stdev"/>
 		</scaleOperator>
-		<scaleOperator scaleFactor="0.75" weight="12">
-			<parameter idref="clock.rate"/>
-		</scaleOperator>
-		<upDownOperator scaleFactor="0.75" weight="30">
+ -->
+		<randomWalkOperator windowSize="1.0" weight="7">
+			<parameter idref="coefficient1"/>
+		</randomWalkOperator>
+		<randomWalkOperator windowSize="1.0" weight="7">
+			<parameter idref="coefficient2"/>
+		</randomWalkOperator>
+		<bitFlipOperator weight="2"  priorOnSum="false">
+			<maskedParameter>
+				<parameter idref="indicators"/>
+				<mask>
+					<parameter value="0 0 1"/>
+				</mask>
+			</maskedParameter>
+		</bitFlipOperator>
+<!--
+		<swapOperator size="1" weight="10" autoOptimize="false">
+			<parameter idref="randomEffects.categories"/>
+		</swapOperator>
+		<uniformIntegerOperator weight="10">
+			<parameter idref="randomEffects.categories"/>
+		</uniformIntegerOperator>
+-->
+		<upDownOperator scaleFactor="0.75" weight="50">
 			<up>
 				<parameter idref="treeModel.allInternalNodeHeights"/>
 			</up>
 			<down>
-				<parameter idref="clock.rate"/>
+				<parameter idref="coefficient1"/>
 			</down>
 		</upDownOperator>
 		<upDownOperator scaleFactor="0.75" weight="15">
@@ -592,7 +849,7 @@
 				<parameter idref="constant.popSize"/>
 			</up>
 			<down>
-				<parameter idref="clock.rate"/>
+				<parameter idref="coefficient1"/>
 			</down>
 		</upDownOperator>
 		<subtreeSlide size="1.0" gaussian="true" weight="30">
@@ -607,7 +864,7 @@
 		<wilsonBalding weight="3">
 			<treeModel idref="treeModel"/>
 		</wilsonBalding>
-		<scaleOperator scaleFactor="0.75" weight="3">
+		<scaleOperator scaleFactor="0.75" weight="50">
 			<parameter idref="treeModel.rootHeight"/>
 		</scaleOperator>
 		<uniformOperator weight="30">
@@ -616,84 +873,86 @@
 		<scaleOperator scaleFactor="0.75" weight="12">
 			<parameter idref="constant.popSize"/>
 		</scaleOperator>
-		<uniformOperator weight="0.05">
+		<uniformOperator weight="0.005">
 			<parameter idref="age(6114_3reads_50_1960_1960)"/>
 		</uniformOperator>
-		<uniformOperator weight="0.05">
+		<uniformOperator weight="0.005">
 			<parameter idref="age(AF266288_1954)"/>
 		</uniformOperator>
-		<uniformOperator weight="0.05">
+		<uniformOperator weight="0.005">
 			<parameter idref="age(AB481087_1989)"/>
 		</uniformOperator>
-		<uniformOperator weight="0.05">
+		<uniformOperator weight="0.005">
 			<parameter idref="age(MG912589_1991)"/>
 		</uniformOperator>
-		<uniformOperator weight="0.05">
+		<uniformOperator weight="0.005">
 			<parameter idref="age(DQ227319_1997)"/>
 		</uniformOperator>
-		<uniformOperator weight="0.05">
+		<uniformOperator weight="0.005">
 			<parameter idref="age(KJ755974_1999)"/>
 		</uniformOperator>
-		<uniformOperator weight="0.05">
+		<uniformOperator weight="1">
 			<parameter idref="age(X98291_1910)"/>
 		</uniformOperator>
-		<uniformOperator weight="0.05">
+		<uniformOperator weight="0.005">
 			<parameter idref="age(KR781450_1969)"/>
 		</uniformOperator>
-		<uniformOperator weight="0.05">
+		<uniformOperator weight="0.005">
 			<parameter idref="age(EU267274_1976)"/>
 		</uniformOperator>
-		<uniformOperator weight="0.05">
+		<uniformOperator weight="0.005">
 			<parameter idref="age(KJ466104_2010)"/>
 		</uniformOperator>
-		<uniformOperator weight="0.05">
+		<uniformOperator weight="0.005">
 			<parameter idref="age(KR140086_1994)"/>
 		</uniformOperator>
-		<uniformOperator weight="0.05">
+		<uniformOperator weight="0.005">
 			<parameter idref="age(JX217850_2008)"/>
 		</uniformOperator>
-		<uniformOperator weight="0.05">
+		<uniformOperator weight="0.005">
 			<parameter idref="age(MG581412_2008-05)"/>
 		</uniformOperator>
-		<uniformOperator weight="0.05">
+		<uniformOperator weight="0.005">
 			<parameter idref="age(KY888168_2016-09)"/>
 		</uniformOperator>
-		<uniformOperator weight="0.05">
+		<uniformOperator weight="0.005">
 			<parameter idref="age(NC_006383_2000)"/>
 		</uniformOperator>
-		<uniformOperator weight="0.05">
+		<uniformOperator weight="0.005">
 			<parameter idref="age(KC594074_2008)"/>
 		</uniformOperator>
-		<uniformOperator weight="0.05">
+		<uniformOperator weight="0.005">
 			<parameter idref="age(KJ867541_2010)"/>
 		</uniformOperator>
-		<uniformOperator weight="0.05">
+		<uniformOperator weight="0.005">
 			<parameter idref="age(MF678816_2017-01)"/>
 		</uniformOperator>
-		<uniformOperator weight="0.05">
+		<uniformOperator weight="0.005">
 			<parameter idref="age(EU267273_1989)"/>
 		</uniformOperator>
-		<uniformOperator weight="0.05">
+		<uniformOperator weight="0.005">
 			<parameter idref="age(KJ867544_1983)"/>
 		</uniformOperator>
-		<uniformOperator weight="0.05">
+		<uniformOperator weight="0.005">
 			<parameter idref="age(KM463083_2011-05)"/>
 		</uniformOperator>
 	</operators>
 	
 
 	<!-- Define MCMC                                                             -->
-	<mcmc id="mcmc" chainLength="50000000" autoOptimize="true" operatorAnalysis="MorbiliV_51seq_aligned_dated_StrictClock.ops">
+	<mcmc id="mcmc" chainLength="500000000" autoOptimize="true" operatorAnalysis="MorbiliV_51seq_aligned_dated_FLClock_TDomega.ops">
 		<joint id="joint">
 			<prior id="prior">
+                 <multivariateNormalPrior idref="omega.coefficients.prior"/>
+
 				<logNormalPrior mean="1.0" stdev="2" offset="0.0">
 					<parameter idref="kappa"/>
 				</logNormalPrior>
 				
-				<exponentialPrior mean="10.0" offset="57.84658">
+			    <exponentialPrior mean="10.0" offset="57.84658">
 					<parameter idref="age(X98291_1910)"/>
 				</exponentialPrior>
-				
+
 				<uniformPrior lower="0.0" upper="1.0">
 					<parameter idref="codonfrequencies"/>
 				</uniformPrior>
@@ -702,25 +961,29 @@
 					<parameter idref="siteModel.alpha"/>
 				</exponentialPrior>
 
-				<gammaPrior shape="0.001" scale="1000.0" offset="0.0">
-					<parameter idref="omega"/>
-				</gammaPrior>
-				<ctmcScalePrior>
-					<ctmcScale>
-						<parameter idref="clock.rate"/>
-					</ctmcScale>
-					<treeModel idref="treeModel"/>
-				</ctmcScalePrior>
-				<oneOnXPrior>
+<!--
+				<exponentialPrior mean="0.3333333333333333" offset="0.0">
+					<parameter idref="ucld.stdev"/>
+				</exponentialPrior>
+-->
+				<normalPrior mean="-5.0" stdev="5.0">
+					<parameter idref="coefficient1"/>
+				</normalPrior>
+
+				<normalPrior mean="0.0" stdev="1.0">
+					<parameter idref="coefficient2"/>
+				</normalPrior>
+
+				<logNormalPrior mean="10.0" stdev="20" offset="0.0">
 					<parameter idref="constant.popSize"/>
-				</oneOnXPrior>
+				</logNormalPrior>
 				<coalescentLikelihood idref="coalescent"/>
 				
 				
-				<discretizedBranchRates idref="branchRates"/>
+				<countableMixtureBranchRates idref="branchRates"/>
 			</prior>
 			<likelihood id="likelihood">
-				<treeDataLikelihood idref="treeLikelihood"/>
+				<treeLikelihood idref="treeLikelihood"/>
 			</likelihood>
 		</joint>
 		<operators idref="operators"/>
@@ -739,16 +1002,16 @@
 			<column label="age(root)" sf="6" width="12">
 				<tmrcaStatistic idref="age(root)"/>
 			</column>
-			<column label="clock.rate" sf="6" width="12">
+			<column label="clockRate" sf="6" width="12">
 				<parameter idref="clock.rate"/>
 			</column>
-            <column label="omega" sf="6" width="12">
-                <parameter idref="omega"/>
+            <column label="omega effects" sf="6" width="12">
+                <parameter idref="omega.coefficients"/>
             </column>
 		</log>
 
 		<!-- write log to file                                                       -->
-		<log id="fileLog" logEvery="5000" fileName="MorbiliV_51seq_aligned_dated_StrictClock.log" overwrite="false">
+		<log id="fileLog" logEvery="5000" fileName="MorbiliV_51seq_aligned_dated_FLClock_TDomega.log" overwrite="false">
 			<joint idref="joint"/>
 			<prior idref="prior"/>
 			<likelihood idref="likelihood"/>
@@ -759,9 +1022,14 @@
 	        <parameter idref="kappa"/>
 			<parameter idref="siteModel.alpha"/>
 			<parameter idref="constant.popSize"/>
-			<parameter idref="omega"/>
+			<parameter idref="omega.coefficients"/>
 			<parameter idref="codonfrequencies"/>
-			<parameter idref="clock.rate"/>
+ 			<parameter idref="ucld.stdev"/>
+            <parameter idref="clock.rate"/>
+			<parameter idref="coefficient1"/>
+			<parameter idref="coefficient1"/>
+			<parameter idref="indicators"/>
+			<rateStatistic idref="meanRate"/>
 
 	<!-- START Tip date sampling                                                 -->
 			<parameter idref="age(6114_3reads_50_1960_1960)"/>
@@ -788,18 +1056,23 @@
 
 			<!-- END Tip date sampling                                                   -->
 
-			<treeDataLikelihood idref="treeLikelihood"/>
-			<discretizedBranchRates idref="branchRates"/>
+			<treeLikelihood idref="treeLikelihood"/>
+			<strictClockBranchRates idref="branchRates"/>
 			<coalescentLikelihood idref="coalescent"/>
 			
 		</log>
 
 		<!-- write tree log to file                                                  -->
-		<logTree id="treeFileLog" logEvery="5000" nexusFormat="true" fileName="MorbiliV_51seq_aligned_dated_StrictClock.trees" sortTranslationTable="true">
+		<logTree id="treeFileLog" logEvery="5000" nexusFormat="true" fileName="MorbiliV_51seq_aligned_dated_FLClock_TDomega.trees" sortTranslationTable="true">
 			<treeModel idref="treeModel"/>
 			<trait name="rate" tag="rate">
 				<discretizedBranchRates idref="branchRates"/>
 			</trait>
+<!--
+			<trait name="RE.rate" tag="RE.rate">
+				<discretizedBranchRates idref="randomEffects"/>
+			</trait>
+-->
 			<joint idref="joint"/>
 		</logTree>
 	</mcmc>
